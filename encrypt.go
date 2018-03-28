@@ -83,8 +83,8 @@ type Encrypter struct {
 }
 
 // NewEncrypter returns a new encrypter using password and salt.
-func NewEncrypter(password string, salt Salt) (*Encrypter, error) {
-	if password == "" {
+func NewEncrypter(password []byte, salt Salt) (*Encrypter, error) {
+	if len(password) == 0 {
 		return nil, fmt.Errorf("NewEncrypter cannot have empty password")
 	}
 
@@ -93,7 +93,7 @@ func NewEncrypter(password string, salt Salt) (*Encrypter, error) {
 	}
 
 	// Generate the AES encryption key from the password and salt
-	aesKey, e := aesKeyFromPasswordAndSalt([]byte(password), salt)
+	aesKey, e := aesKeyFromPasswordAndSalt(password, salt)
 	if e != nil {
 		return nil, e
 	}
@@ -176,8 +176,12 @@ type Decrypter struct {
 }
 
 // NewDecrypter returns a new decrypter using password
-func NewDecrypter(password string) *Decrypter {
-	return &Decrypter{[]byte(password), make(map[[saltLen]byte]*xts.Cipher)}
+func NewDecrypter(password []byte) (*Decrypter, error) {
+	if len(password) == 0 {
+		return nil, fmt.Errorf("NewDecrypter cannot have empty password")
+	}
+
+	return &Decrypter{password, make(map[[saltLen]byte]*xts.Cipher)}, nil
 }
 
 // Close will disable the Decrypter and erase the password from memory.

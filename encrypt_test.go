@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-const strongPassword1 string = "correct horse battery staple"
-const strongPassword2 string = "correct horse battery staple 2"
+var strongPassword1 = []byte("correct horse battery staple")
+var strongPassword2 = []byte("correct horse battery staple 2")
 
 var sharedSalt Salt
 
@@ -20,6 +20,18 @@ func getSharedSalt(t *testing.T) Salt {
 		}
 	}
 	return sharedSalt
+}
+
+func TestEncrypterEmptyPassword(t *testing.T) {
+	_, e := NewEncrypter([]byte(""), getSharedSalt(t))
+	if e == nil {
+		t.Error("Empty passwords should not be accepted.")
+	}
+
+	_, e = NewEncrypter(nil, getSharedSalt(t))
+	if e == nil {
+		t.Error("nil passwords should not be accepted.")
+	}
 }
 
 func TestEncryptContent(t *testing.T) {
@@ -35,7 +47,11 @@ func TestEncryptContent(t *testing.T) {
 		t.Errorf("Error encrypting content: %v", err)
 	}
 
-	d := NewDecrypter(strongPassword1)
+	d, err := NewDecrypter(strongPassword1)
+	if err != nil {
+		t.Errorf("Error creating decrypter: %v", err)
+	}
+
 	content2Bytes, err := d.Decrypt([]byte(encrypted))
 	if err != nil {
 		t.Errorf("Error decrypting content: %v", err)
@@ -55,7 +71,11 @@ func TestBadPassword(t *testing.T) {
 		t.Errorf("Error encrypting content: %v", err)
 	}
 
-	d := NewDecrypter(strongPassword2)
+	d, err := NewDecrypter(strongPassword2)
+	if err != nil {
+		t.Errorf("Error creating decrypter: %v", err)
+	}
+
 	_, err = d.Decrypt([]byte(encrypted))
 	if err == nil {
 		t.Errorf("Expected an error decrypting content with the wrong password")
@@ -78,7 +98,11 @@ func TestTampering(t *testing.T) {
 	//Change content value
 	encrypted[len(encrypted)/2] = encrypted[len(encrypted)/2] - 1
 
-	d := NewDecrypter(strongPassword1)
+	d, err := NewDecrypter(strongPassword1)
+	if err != nil {
+		t.Errorf("Error creating decrypter: %v", err)
+	}
+
 	_, err = d.Decrypt([]byte(encrypted))
 	if err == nil {
 		t.Errorf("Expected an error decrypting tampered content")
@@ -133,7 +157,11 @@ func TestVersionCheck(t *testing.T) {
 	// Restore the original version value
 	version = oldVersion
 
-	d := NewDecrypter(strongPassword1)
+	d, err := NewDecrypter(strongPassword1)
+	if err != nil {
+		t.Errorf("Error creating decrypter: %v", err)
+	}
+
 	_, err = d.Decrypt([]byte(encrypted))
 	if err == nil {
 		t.Errorf("Expected an error decrypting content with a higher version")
@@ -147,7 +175,11 @@ func TestVersionCheck(t *testing.T) {
 func TestCloseDecrypt(t *testing.T) {
 	e, _ := NewEncrypter(strongPassword1, getSharedSalt(t))
 	ciphertext, _ := e.Encrypt([]byte("Encrypted content"))
-	d := NewDecrypter(strongPassword1)
+	d, err := NewDecrypter(strongPassword1)
+	if err != nil {
+		t.Errorf("Error creating decrypter: %v", err)
+	}
+
 	d.Decrypt(ciphertext)
 
 	d.Close()
@@ -203,7 +235,8 @@ func BenchmarkDecryptFirstTime(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		d := NewDecrypter(strongPassword1)
+		d, _ := NewDecrypter(strongPassword1)
+
 		d.Decrypt(ciphertext) // The first call is expected to be very expensive as it's where the key is calculated.
 	}
 }
@@ -214,7 +247,7 @@ func BenchmarkDecrypt(b *testing.B) {
 	e, _ := NewEncrypter(strongPassword1, salt)
 	ciphertext, _ := e.Encrypt(content)
 
-	d := NewDecrypter(strongPassword1)
+	d, _ := NewDecrypter(strongPassword1)
 	d.Decrypt(ciphertext) // The first call is expected to be very expensive as it's where the key is calculated.
 
 	b.ResetTimer()
